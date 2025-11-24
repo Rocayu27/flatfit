@@ -23,10 +23,11 @@ import { Badge } from "../../ui/Badge";
 import { Button } from "../../ui/Button"; 
 import { ImageWithFallback } from "../../ui/ImageWithFallback";
 import { ConnectionSuccessDialog } from "../../ui/ConnectionSuccessDialog";
+import { ImageSourcePropType } from "react-native";
 
 type Listing = {
   id: number;
-  image: string;
+  image: ImageSourcePropType;
   title: string;
   price: number;
   location: string;
@@ -88,8 +89,7 @@ export function LeaseTransferDetails({
           {/* Image */}
           <View style={styles.imageWrapper}>
             <ImageWithFallback
-              src={listing.image}
-              alt={listing.title}
+              source={listing.image}
               style={styles.image}
             />
           </View>

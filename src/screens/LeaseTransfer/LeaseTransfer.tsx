@@ -29,7 +29,7 @@ const mockTransfers = [
   {
     id: 1,
     image:
-      "https://images.unsplash.com/photo-1504390747618-f9ea2a96c487?auto=format&w=1080",
+      {uri: "https://images.unsplash.com/photo-1501183638714-8c3b2e6f2d76?auto=format&w=1080"},
     title: "Need to Transfer 1 Bedroom Lease - Study Abroad",
     price: 1050,
     location: "3 mi from campus",
@@ -44,7 +44,7 @@ const mockTransfers = [
   {
     id: 2,
     image:
-      "https://images.unsplash.com/photo-1504390747618-f9ea2a96c487?auto=format&w=1080",
+     {uri: "https://images.unsplash.com/photo-1504390747618-f9ea2a96c487?auto=format&w=1080"},
     title: "Sublease Available - Graduating Early",
     price: 700,
     location: "1.0 mi from campus",
@@ -59,7 +59,7 @@ const mockTransfers = [
   {
     id: 3,
     image:
-      "https://images.unsplash.com/photo-1515263487990-61b07816b324?auto=format&w=1080",
+      {uri:"https://images.unsplash.com/photo-1515263487990-61b07816b324?auto=format&w=1080"},
     title: "Room in 3BR - Internship Transfer",
     price: 650,
     location: "0.6 mi from campus",
@@ -236,7 +236,7 @@ export function LeaseTransfer() {
                   style={styles.listCard}
                 >
                   <Image
-                    source={{ uri: transfer.image }}
+                    source={ transfer.image }
                     style={styles.cardImage}
                   />
                   <View style={styles.cardBody}>

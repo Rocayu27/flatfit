@@ -1,55 +1,63 @@
-// badge.tsx (React Native)
+// src/components/ui/badge.tsx (React Native compatible)
 
-import * as React from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  StyleProp,
-  ViewStyle,
-  TextStyle,
-} from "react-native";
+import React from "react";
+import { View, ViewProps, StyleSheet, Text, TextStyle, ViewStyle } from "react-native";
 
 type BadgeVariant = "default" | "secondary" | "destructive" | "outline";
 
-export interface BadgeProps {
-  children: React.ReactNode;
+export interface BadgeProps extends ViewProps {
   variant?: BadgeVariant;
-  style?: StyleProp<ViewStyle>;
-  textStyle?: StyleProp<TextStyle>;
+  children?: React.ReactNode;
 }
 
-export function Badge({
-  children,
+// Map variants to container + text styles
+const variantStyles: Record<BadgeVariant, { container: ViewStyle; text: TextStyle }> = {
+  default: {
+    container: { backgroundColor: "#2563EB", borderColor: "transparent" },
+    text: { color: "#FFFFFF" },
+  },
+  secondary: {
+    container: { backgroundColor: "#E5E7EB", borderColor: "transparent" },
+    text: { color: "#111827" },
+  },
+  destructive: {
+    container: { backgroundColor: "#DC2626", borderColor: "transparent" },
+    text: { color: "#FFFFFF" },
+  },
+  outline: {
+    container: { backgroundColor: "transparent", borderColor: "#E5E7EB" },
+    text: { color: "#111827" },
+  },
+};
+
+// Helper similar to original `badgeVariants`, now returning a style array
+export const badgeVariants = ({
   variant = "default",
-  style,
-  textStyle,
-}: BadgeProps) {
-  const containerStyle = [
-    styles.base,
-    variantStyles[variant],
-    style,
-  ] as StyleProp<ViewStyle>;
+}: {
+  variant?: BadgeVariant;
+} = {}): ViewStyle[] => {
+  const v = variantStyles[variant];
+  return [styles.base, v.container];
+};
 
-  const textStyles = [
-    styles.textBase,
-    textVariantStyles[variant],
-    textStyle,
-  ] as StyleProp<TextStyle>;
+export function Badge({ variant = "default", style, children, ...props }: BadgeProps) {
+  const v = variantStyles[variant];
 
-  const renderChildren = () => {
-    if (
-      typeof children === "string" ||
-      typeof children === "number"
-    ) {
-      return <Text style={textStyles}>{children}</Text>;
-    }
+  // If you often pass plain strings, this convenience wrapper helps
+  const content =
+    typeof children === "string" ? (
+      <Text style={[styles.text, v.text]} numberOfLines={1}>
+        {children}
+      </Text>
+    ) : (
+      children
+    );
 
-    // If you pass your own <Text> / icons, they will use their own styles.
-    return children;
-  };
-
-  return <View style={containerStyle}>{renderChildren()}</View>;
+  return (
+    <View style={[styles.base, v.container, style as ViewStyle]} {...props}>
+      {content}
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
@@ -57,49 +65,14 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: 6,
-    borderWidth: 1,
+    alignSelf: "flex-start",
     paddingHorizontal: 8,
     paddingVertical: 2,
-    alignSelf: "flex-start",
-    gap: 4,
+    borderRadius: 6,
+    borderWidth: 1,
   },
-  textBase: {
+  text: {
     fontSize: 12,
     fontWeight: "500",
   },
 });
-
-const variantStyles: Record<BadgeVariant, ViewStyle> = {
-  default: {
-    borderColor: "transparent",
-    backgroundColor: "#000000", // primary
-  },
-  secondary: {
-    borderColor: "transparent",
-    backgroundColor: "#E5E7EB", // secondary-ish
-  },
-  destructive: {
-    borderColor: "transparent",
-    backgroundColor: "#EF4444",
-  },
-  outline: {
-    borderColor: "#D1D5DB",
-    backgroundColor: "transparent",
-  },
-};
-
-const textVariantStyles: Record<BadgeVariant, TextStyle> = {
-  default: {
-    color: "#FFFFFF",
-  },
-  secondary: {
-    color: "#111827",
-  },
-  destructive: {
-    color: "#FFFFFF",
-  },
-  outline: {
-    color: "#111827",
-  },
-};

@@ -88,8 +88,7 @@ export function LeaseTransferPreview({
           {/* Image */}
           <View style={styles.imageWrapper}>
             <ImageWithFallback
-              src={displayImage}
-              alt={formData.propertyName}
+              source={displayImage}
               style={styles.image}
             />
             {!formData.photo && (

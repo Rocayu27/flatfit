@@ -1,74 +1,122 @@
-// button.tsx (React Native)
+// src/components/ui/button.tsx (React Native compatible)
 
-import * as React from "react";
+import React from "react";
 import {
-  Pressable,
-  PressableProps,
-  Text,
+  TouchableOpacity,
+  TouchableOpacityProps,
   StyleSheet,
-  StyleProp,
+  Text,
   ViewStyle,
   TextStyle,
+  View,
 } from "react-native";
 
 type ButtonVariant = "default" | "destructive" | "outline" | "secondary" | "ghost" | "link";
 type ButtonSize = "default" | "sm" | "lg" | "icon";
 
-export interface ButtonProps extends PressableProps {
+export interface ButtonProps extends TouchableOpacityProps {
   variant?: ButtonVariant;
   size?: ButtonSize;
-  style?: StyleProp<ViewStyle>;
-  textStyle?: StyleProp<TextStyle>;
-  children: React.ReactNode;
+  children?: React.ReactNode;
 }
 
-export const Button = React.forwardRef< React.ElementRef<typeof Pressable>, ButtonProps>(
-  (
-    {
-      variant = "default",
-      size = "default",
-      style,
-      textStyle,
-      children,
-      ...props
+// Map variants to container + text styles
+const variantStyles: Record<ButtonVariant, { container: ViewStyle; text: TextStyle }> = {
+  default: {
+    container: { backgroundColor: "#2563EB" }, // primary
+    text: { color: "#FFFFFF" },
+  },
+  destructive: {
+    container: { backgroundColor: "#DC2626" },
+    text: { color: "#FFFFFF" },
+  },
+  outline: {
+    container: { backgroundColor: "#FFFFFF", borderWidth: 1, borderColor: "#E5E7EB" },
+    text: { color: "#111827" },
+  },
+  secondary: {
+    container: { backgroundColor: "#E5E7EB" },
+    text: { color: "#111827" },
+  },
+  ghost: {
+    container: { backgroundColor: "transparent" },
+    text: { color: "#111827" },
+  },
+  link: {
+    container: { backgroundColor: "transparent" },
+    text: {
+      color: "#2563EB",
+      textDecorationLine: "underline",
+      textDecorationColor: "#2563EB",
     },
-    ref,
-  ) => {
-    const containerStyle = [
+  },
+};
+
+const sizeStyles: Record<ButtonSize, ViewStyle> = {
+  default: {
+    height: 36,
+    paddingHorizontal: 16,
+    borderRadius: 6,
+  },
+  sm: {
+    height: 32,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+  },
+  lg: {
+    height: 40,
+    paddingHorizontal: 20,
+    borderRadius: 6,
+  },
+  icon: {
+    width: 36,
+    height: 36,
+    borderRadius: 6,
+    paddingHorizontal: 0,
+  },
+};
+
+// Helper roughly equivalent to original `buttonVariants`, now returning a style array
+export const buttonVariants = ({
+  variant = "default",
+  size = "default",
+}: {
+  variant?: ButtonVariant;
+  size?: ButtonSize;
+} = {}): ViewStyle[] => {
+  const v = variantStyles[variant];
+  const s = sizeStyles[size];
+
+  return [styles.base, v.container, s];
+};
+
+export const Button = React.forwardRef< React.ElementRef<typeof TouchableOpacity>, ButtonProps>(
+  ({ variant = "default", size = "default", style, children, disabled, ...props }, ref) => {
+    const v = variantStyles[variant];
+    const s = sizeStyles[size];
+
+    const containerStyles = [
       styles.base,
-      sizeStyles[size],
-      variantStyles[variant],
-      style,
-    ] as StyleProp<ViewStyle>;
+      v.container,
+      s,
+      disabled && styles.disabled,
+      style as ViewStyle,
+    ];
 
-    const textStyles = [
-      styles.textBase,
-      textVariantStyles[variant],
-      textStyle,
-    ] as StyleProp<TextStyle>;
-
-    const renderChildren = () => {
-      if (
-        typeof children === "string" ||
-        typeof children === "number"
-      ) {
-        return <Text style={textStyles}>{children}</Text>;
-      }
-
-      return children;
-    };
+    // Convenience: if children is plain string, wrap in Text with button text styles
+    const content =
+      typeof children === "string" ? (
+        <Text style={[styles.text, v.text]} numberOfLines={1}>
+          {children}
+        </Text>
+      ) : (
+        children
+      );
 
     return (
-      <Pressable
-        ref={ref}
-        style={({ pressed }) => [
-          containerStyle,
-          pressed && styles.pressed,
-        ]}
-        {...props}
-      >
-        {renderChildren()}
-      </Pressable>
+      <TouchableOpacity ref={ref} style={containerStyles} disabled={disabled} {...props}>
+        <View style={styles.content}>{content}</View>
+      </TouchableOpacity>
     );
   },
 );
@@ -80,81 +128,19 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: 6,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    opacity: 1,
+    alignSelf: "flex-start",
   },
-  pressed: {
-    opacity: 0.8,
-  },
-  textBase: {
+  content: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8, // requires RN 0.71+; if not available, replace with manual spacing
+  } as ViewStyle,
+  text: {
     fontSize: 14,
     fontWeight: "500",
   },
+  disabled: {
+    opacity: 0.5,
+  },
 });
-
-const variantStyles: Record<ButtonVariant, ViewStyle> = {
-  default: {
-    backgroundColor: "#000000",
-  },
-  destructive: {
-    backgroundColor: "#EF4444",
-  },
-  outline: {
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#D1D5DB",
-  },
-  secondary: {
-    backgroundColor: "#E5E7EB",
-  },
-  ghost: {
-    backgroundColor: "transparent",
-  },
-  link: {
-    backgroundColor: "transparent",
-  },
-};
-
-const textVariantStyles: Record<ButtonVariant, TextStyle> = {
-  default: {
-    color: "#FFFFFF",
-  },
-  destructive: {
-    color: "#FFFFFF",
-  },
-  outline: {
-    color: "#111827",
-  },
-  secondary: {
-    color: "#111827",
-  },
-  ghost: {
-    color: "#111827",
-  },
-  link: {
-    color: "#000000",
-    textDecorationLine: "underline",
-  },
-};
-
-const sizeStyles: Record<ButtonSize, ViewStyle> = {
-  default: {
-    height: 36,
-  },
-  sm: {
-    height: 32,
-    paddingHorizontal: 12,
-  },
-  lg: {
-    height: 40,
-    paddingHorizontal: 20,
-  },
-  icon: {
-    width: 36,
-    height: 36,
-    paddingHorizontal: 0,
-    paddingVertical: 0,
-  },
-};

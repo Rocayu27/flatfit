@@ -10,14 +10,14 @@ import {
 } from "react-native";
 
 type ImageWithFallbackProps = {
-  src: string;
+  source: any;
   alt?: string;
   style?: StyleProp<ImageStyle>;
   fallbackText?: string;
 } & Omit<ImageProps, "source">;
 
 export const ImageWithFallback: React.FC<ImageWithFallbackProps> = ({
-  src,
+  source,
   alt,
   style,
   fallbackText = "Image unavailable",
@@ -25,9 +25,9 @@ export const ImageWithFallback: React.FC<ImageWithFallbackProps> = ({
 }) => {
   const [didError, setDidError] = useState(false);
 
-  if (didError || !src) {
+  if (didError || !source) {
     return (
-      <View style={[styles.fallback, style]}>
+      <View style={styles.fallback} pointerEvents="none">
         <Text style={styles.fallbackText}>{fallbackText}</Text>
       </View>
     );
@@ -35,7 +35,7 @@ export const ImageWithFallback: React.FC<ImageWithFallbackProps> = ({
 
   return (
     <Image
-      source={{ uri: src }}
+      source={ source }
       style={style}
       onError={() => setDidError(true)}
       accessibilityLabel={alt}
