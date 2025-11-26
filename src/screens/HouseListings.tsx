@@ -20,7 +20,8 @@ import { supabase } from "../lib/supabase";
 
 type Listing = {
   id: number;
-  image: any;              
+  image: any;             
+  images?: { uri: string }[]; 
   title: string;
   price: number;
   location: string;
@@ -31,7 +32,7 @@ type Listing = {
   contactName: string;
   contactPhone: string;
   contactWebsite: string;
-  description?: string;    
+  description?: string;
 };
 
 export function HousingListings() {
@@ -49,10 +50,11 @@ export function HousingListings() {
       setIsLoading(true);
 
       const { data, error } = await supabase
-        .from("listings")
-        .select(
-          "id, name, monthly_price, bedrooms, bathrooms, distance_miles, available_from, amenities, building_name, cover_image, about"
-        );
+      .from("listings")
+      .select(
+        "id, name, monthly_price, bedrooms, bathrooms, distance_miles, available_from, amenities, building_name, cover_image, images, about"
+      );
+
 
       if (error) {
         console.error("Error loading listings:", error);
@@ -60,31 +62,43 @@ export function HousingListings() {
         return;
       }
 
-      const mapped: Listing[] = (data ?? []).map((row: any) => ({
-        id: Number(row.id),
-        image: row.cover_image
-          ? { uri: row.cover_image }
-          : require("../../assets/Innovation_Square.jpg"),
-        title: row.name ?? "Listing",
-        price: Number(row.monthly_price ?? 0),
-        location:
-          typeof row.distance_miles === "number"
-            ? `${row.distance_miles.toFixed(2)} mi from campus`
-            : `${Number(row.distance_miles ?? 0).toFixed(2)} mi from campus`,
-        bedrooms: Number(row.bedrooms ?? 0),
-        bathrooms: Number(row.bathrooms ?? 0),
-        availableDate: row.available_from
-          ? new Date(row.available_from).toLocaleString("en-US", {
-              month: "short",
-              year: "numeric",
-            })
-          : "TBD",
-        tags: (row.amenities ?? []) as string[],
-        contactName: row.building_name ?? "Housing Office",
-        contactPhone: "",      
-        contactWebsite: "",    
-        description: row.about ?? "",
-      }));
+  const mapped: Listing[] = (data ?? []).map((row: any) => {
+    const galleryUrls: string[] = row.images ?? [];
+
+    const galleryImages = galleryUrls.map((url: string) => ({ uri: url }));
+
+    const coverImage =
+      row.cover_image
+        ? { uri: row.cover_image }
+        : galleryImages[0] ??
+          require("../../assets/Innovation_Square.jpg");
+
+    return {
+      id: Number(row.id),
+      image: coverImage,
+      images: galleryImages, 
+      title: row.name ?? "Listing",
+      price: Number(row.monthly_price ?? 0),
+      location:
+        typeof row.distance_miles === "number"
+          ? `${row.distance_miles.toFixed(2)} mi from campus`
+          : `${Number(row.distance_miles ?? 0).toFixed(2)} mi from campus`,
+      bedrooms: Number(row.bedrooms ?? 0),
+      bathrooms: Number(row.bathrooms ?? 0),
+      availableDate: row.available_from
+        ? new Date(row.available_from).toLocaleString("en-US", {
+            month: "short",
+            year: "numeric",
+          })
+        : "TBD",
+      tags: (row.amenities ?? []) as string[],
+      contactName: row.building_name ?? "Housing Office",
+      contactPhone: "",
+      contactWebsite: "",
+      description: row.about ?? "",
+    };
+  });
+
 
       setListings(mapped);
       setIsLoading(false);
