@@ -1,7 +1,10 @@
 // src/screens/LeaseTransfer.tsx (React Native version)
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {  SafeAreaView } from "react-native-safe-area-context";
+import { supabase } from "../../lib/supabase";
+import * as ImagePicker from "expo-image-picker";
+
 import {
   View,
   Text,
@@ -24,54 +27,20 @@ import {
 import { LeaseTransferDetails } from "./LeaseTransferDetails";
 import { LeaseTransferPreview } from "./LeaseTransferPreview";
 
-// You can later move this mock data out into a separate file if you want.
-const mockTransfers = [
-  {
-    id: 1,
-    image:
-      {uri: "https://images.unsplash.com/photo-1501183638714-8c3b2e6f2d76?auto=format&w=1080"},
-    title: "Need to Transfer 1 Bedroom Lease - Study Abroad",
-    price: 1050,
-    location: "3 mi from campus",
-    bedrooms: 2,
-    bathrooms: 1,
-    availableDate: "Jan 2026",
-    tags: ["Urgent", "Furnished"],
-    reason: "study-abroad",
-    description:
-      "Looking for someone to take over my lease while I'm studying abroad in Spain for a semester. The apartment is fully furnished and has everything you need. Great location with easy bus access. The other roommate is very clean and quiet.",
-  },
-  {
-    id: 2,
-    image:
-     {uri: "https://images.unsplash.com/photo-1504390747618-f9ea2a96c487?auto=format&w=1080"},
-    title: "Sublease Available - Graduating Early",
-    price: 700,
-    location: "1.0 mi from campus",
-    bedrooms: 1,
-    bathrooms: 1,
-    availableDate: "May 2025",
-    tags: ["Flexible"],
-    reason: "graduating",
-    description:
-      "I'm graduating a semester early and need someone to take over my lease through August. The landlord is flexible and the building is quiet with mostly grad students.",
-  },
-  {
-    id: 3,
-    image:
-      {uri:"https://images.unsplash.com/photo-1515263487990-61b07816b324?auto=format&w=1080"},
-    title: "Room in 3BR - Internship Transfer",
-    price: 650,
-    location: "0.6 mi from campus",
-    bedrooms: 1,
-    bathrooms: 1,
-    availableDate: "Jun 2025",
-    tags: ["Parking included"],
-    reason: "internship",
-    description:
-      "Transferring my room in a 3-bedroom house for a summer internship. Two great roommates (both juniors). Parking spot included which is rare in this area!",
-  },
-];
+
+type LeaseTransferListing = {
+  id: number;
+  image: { uri: string };
+  title: string;
+  price: number;
+  location: string;
+  bedrooms: number;
+  bathrooms: number;
+  availableDate: string;
+  tags: string[];
+  reason: string;
+  description: string;
+};
 
 type FormData = {
   propertyName: string;
@@ -81,11 +50,11 @@ type FormData = {
   availableDate: string;
   reason: string;
   description: string;
+  photo?: string;
 };
 
-type LeaseTransferListing = (typeof mockTransfers)[number];
-
 export function LeaseTransfer() {
+  const [transfers, setTransfers] = useState<LeaseTransferListing[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
@@ -93,6 +62,74 @@ export function LeaseTransfer() {
     useState<LeaseTransferListing | null>(null);
   const [uploadedPhoto, setUploadedPhoto] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+
+  const loadTransfers = async () => {
+    setIsLoading(true);
+    const { data, error } = await supabase
+      .from("lease_transfers")
+      .select(
+        "id, property_name, address, rent, bedrooms, available_date, reason, description, photo_url"
+      )
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error("Error loading lease transfers:", error);
+      setIsLoading(false);
+      return;
+    }
+
+    const mapped: LeaseTransferListing[] = (data ?? []).map((row: any) => ({
+      id: Number(row.id),
+      image: {
+        uri:
+          row.photo_url ||
+          "https://images.unsplash.com/photo-1515263487990-61b07816b324?auto=format&w=1080",
+      },
+      title: row.property_name ?? "Lease transfer",
+      price: Number(row.rent ?? 0),
+      location: row.address ?? "Near campus",
+      bedrooms: Number(row.bedrooms ?? 1),
+      bathrooms: 1,
+      availableDate: row.available_date
+        ? new Date(row.available_date).toLocaleString("en-US", {
+            month: "short",
+            year: "numeric",
+          })
+        : "",
+      tags: [],
+      reason: row.reason ?? "",
+      description: row.description ?? "",
+    }));
+
+    setTransfers(mapped);
+    setIsLoading(false);
+  };
+
+  useEffect(() => {
+    loadTransfers();
+  }, []);
+
+  const pickImage = async () => {
+    // Ask for permission
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert("Permission required", "We need access to your photos to upload an image.");
+      return;
+    }
+
+    // Open the image library
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      quality: 0.8,
+    });
+
+    if (!result.canceled && result.assets && result.assets.length > 0) {
+      const uri = result.assets[0].uri;
+      setUploadedPhoto(uri);
+      setFormData((prev) => ({ ...prev, photo: uri }));
+    }
+  };
 
   const [formData, setFormData] = useState<FormData>({
     propertyName: "",
@@ -102,7 +139,9 @@ export function LeaseTransfer() {
     availableDate: "",
     reason: "",
     description: "",
+    photo: undefined,
   });
+  
 
   const handlePreview = () => {
     // simple required-field validation
@@ -123,19 +162,23 @@ export function LeaseTransfer() {
   };
 
   const handlePost = () => {
-    setShowPreview(false);
-    // Reset form
-    setFormData({
-      propertyName: "",
-      address: "",
-      rent: "",
-      bedrooms: "",
-      availableDate: "",
-      reason: "",
-      description: "",
-    });
-    setUploadedPhoto(null);
-  };
+  setShowPreview(false);
+  setIsDialogOpen(false);
+
+  setFormData({
+    propertyName: "",
+    address: "",
+    rent: "",
+    bedrooms: "",
+    availableDate: "",
+    reason: "",
+    description: "",
+  });
+  setUploadedPhoto(null);
+
+  loadTransfers();
+};
+
 
   const handleSearch = (value: string) => {
     setSearchQuery(value);
@@ -145,17 +188,18 @@ export function LeaseTransfer() {
     }
   };
 
-  const filteredTransfers = mockTransfers.filter((transfer) => {
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      return (
-        transfer.title.toLowerCase().includes(query) ||
-        transfer.location.toLowerCase().includes(query) ||
-        transfer.tags.some((tag) => tag.toLowerCase().includes(query))
-      );
-    }
-    return true;
-  });
+  const filteredTransfers = transfers.filter((transfer) => {
+  if (searchQuery) {
+    const query = searchQuery.toLowerCase();
+    return (
+      transfer.title.toLowerCase().includes(query) ||
+      transfer.location.toLowerCase().includes(query) ||
+      transfer.tags.some((tag) => tag.toLowerCase().includes(query))
+    );
+  }
+  return true;
+});
+
 
   if (showPreview) {
     return (
@@ -199,12 +243,14 @@ export function LeaseTransfer() {
                 style={styles.searchInput}
               />
             </View>
+
             <TouchableOpacity
-              onPress={() => setIsDialogOpen(true)}
               style={styles.iconButton}
+              onPress={() => setIsDialogOpen(true)}
             >
-              <Plus size={18} color="#111827" />
+              <Plus size={20} color="#111827" />
             </TouchableOpacity>
+
           </View>
         </View>
 
@@ -370,26 +416,24 @@ export function LeaseTransfer() {
                       style={styles.photo}
                     />
                     <TouchableOpacity
-                      onPress={() => setUploadedPhoto(null)}
+                      onPress={() => {
+                        setUploadedPhoto(null);
+                        setFormData((prev) => ({ ...prev, photo: undefined }));
+                      }}
                       style={styles.photoCloseBtn}
                     >
                       <X size={16} color="#fff" />
                     </TouchableOpacity>
+
                   </View>
                 ) : (
                   <TouchableOpacity
                     style={styles.uploadPlaceholder}
-                    onPress={() => {
-                      // TODO: integrate expo-image-picker here
-                      // For now, just set a placeholder image
-                      setUploadedPhoto(
-                        "https://images.unsplash.com/photo-1515263487990-61b07816b324?auto=format&w=1080",
-                      );
-                    }}
+                    onPress={pickImage}   
                   >
                     <Upload size={24} color="#9CA3AF" />
                     <Text style={styles.uploadText}>
-                      Tap to add a placeholder image
+                      Tap to upload a photo
                     </Text>
                   </TouchableOpacity>
                 )}

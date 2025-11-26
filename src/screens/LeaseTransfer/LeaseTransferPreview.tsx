@@ -2,6 +2,11 @@
 
 import {  SafeAreaView } from "react-native-safe-area-context";
 import React, { useState } from "react";
+import { supabase } from "../../lib/supabase";
+import * as FileSystem from "expo-file-system/legacy";
+import { decode as atob } from "base-64";
+
+
 import {
   View,
   Text,
@@ -45,11 +50,94 @@ export function LeaseTransferPreview({
 }: LeaseTransferPreviewProps) {
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
 
-  const handlePost = () => {
-    setShowSuccessDialog(true);
-  };
+const base64ToUint8Array = (base64: string): Uint8Array => {
+  const binary = atob(base64);
+  const len = binary.length;
+  const bytes = new Uint8Array(len);
+  for (let i = 0; i < len; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return bytes;
+};
 
-  const getReasonLabel = (reason: string) => {
+const uploadImage = async (uri: string): Promise<string> => {
+  // 1) Read the local file as base64
+  const base64 = await FileSystem.readAsStringAsync(uri, {
+    // newer TS types sometimes don’t expose EncodingType, so just use a string
+    encoding: "base64" as any,
+  });
+
+  // 2) Convert base64 → Uint8Array (bytes)
+  const bytes = base64ToUint8Array(base64);
+
+  // 3) Build a file name/path
+  const rawExt = uri.split(".").pop() || "jpg";
+  const fileExt = rawExt.split("?")[0];
+  const fileName = `lease-${Date.now()}.${fileExt}`;
+  const filePath = `lease-transfers/${fileName}`;
+
+  // 4) Upload bytes directly to Supabase Storage
+  const { error: uploadError } = await supabase.storage
+    .from("lease-transfer-images") // 👈 your bucket name
+    .upload(filePath, bytes, {
+      contentType: `image/${fileExt}`,
+    });
+
+  if (uploadError) {
+    console.error("Error uploading image:", uploadError);
+    throw uploadError;
+  }
+
+  // 5) Get a public URL
+  const { data } = supabase.storage
+    .from("lease-transfer-images")
+    .getPublicUrl(filePath);
+
+  return data.publicUrl;
+};
+
+const handlePost = async () => {
+  let photoUrl: string | null = null;
+
+  if (formData.photo) {
+    if (formData.photo.startsWith("file:")) {
+      try {
+        photoUrl = await uploadImage(formData.photo);
+      } catch (e) {
+        console.error(
+          "Image upload failed, continuing without photo:",
+          e,
+        );
+        photoUrl = null;
+      }
+    } else {
+      // already a URL
+      photoUrl = formData.photo;
+    }
+  }
+
+  const { error } = await supabase.from("lease_transfers").insert({
+    property_name: formData.propertyName,
+    address: formData.address,
+    rent: Number(formData.rent),
+    bedrooms: Number(formData.bedrooms),
+    available_date: formData.availableDate,
+    reason: formData.reason,
+    description: formData.description,
+    photo_url: photoUrl,
+  });
+
+  if (error) {
+    console.error("Error inserting lease transfer:", error);
+    return;
+  }
+
+  setShowSuccessDialog(true);
+};
+
+
+
+const getReasonLabel = (reason: string) => {
     const labels: Record<string, string> = {
       "study-abroad": "Study Abroad",
       graduating: "Graduating Early",
