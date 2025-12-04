@@ -197,7 +197,7 @@ export function LeaseTransferDetails({
         <ConnectionSuccessDialog
           open={showSuccessDialog}
           onOpenChange={setShowSuccessDialog}
-          message="Your connection request has been sent! Check your messages for responses."
+          message="Your connection request has been sent!"
         />
       </View>
     </SafeAreaView>

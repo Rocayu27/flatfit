@@ -1,6 +1,8 @@
-// src/Profile.tsx (React Native)
+// src/screens/Profile.tsx (React Native)
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { MOCK_USER_ID } from "../../lib/mockUser";
+import { getProfile, ProfileRecord } from "../../lib/profiles";
 import {
   View,
   Text,
@@ -20,22 +22,27 @@ import {
   Heart,
   Bell,
   RotateCcw,
+  Phone,
+  AtSign,
 } from "lucide-react-native";
-import { Button } from "../ui/Button";
-import { Card } from "../ui/Card";
-import { Badge } from "../ui/Badge";
-import { Avatar, AvatarFallback, AvatarImage } from "../ui/Avatar";
+import { Button } from "../../ui/Button";
+import { Card } from "../../ui/Card";
+import { Badge } from "../../ui/Badge";
+import { Avatar, AvatarFallback, AvatarImage } from "../../ui/Avatar";
 
-type TabKey = "posts" | "messages";
+type TabKey = "posts";
 
-export function Profile() {
+type ProfileProps = {
+  onEditProfile: () => void;
+};
+
+export function Profile({ onEditProfile }: ProfileProps)  {
   const [isVisibleForRoommates, setIsVisibleForRoommates] = useState(true);
   const [showVisibilityDialog, setShowVisibilityDialog] = useState(false);
   const [pendingVisibilityState, setPendingVisibilityState] = useState(false);
   const [activeTab, setActiveTab] = useState<TabKey>("posts");
 
   const handleResetOnboarding = () => {
-    // In RN, you'd typically clear AsyncStorage + maybe reset navigation.
     Alert.alert(
       "Reset welcome screen",
       "In the native app, this would clear your onboarding status so you can see the welcome flow again."
@@ -60,19 +67,11 @@ export function Profile() {
     setShowVisibilityDialog(false);
   };
 
-  // Mock user data
-  const userData = {
-    name: "Alex Thompson",
-    email: "alex.thompson@rochester.edu",
-    photo: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400",
-    age: 21,
-    major: "Computer Science",
-    year: "Junior",
-    housingPreference: "2B1B",
-    budget: "$700-900/mo",
-    hobbies: ["Photography", "Rock Climbing", "Gaming", "Cooking"],
-  };
+  // Profile data from Supabase
+  const [profile, setProfile] = useState<ProfileRecord | null>(null);
+  const [loadingProfile, setLoadingProfile] = useState(true);
 
+  // still mock for now – later, posts can also come from backend
   const userPosts = [
     {
       id: 1,
@@ -83,6 +82,62 @@ export function Profile() {
       views: 24,
     },
   ];
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadProfile = async () => {
+      try {
+        const data = await getProfile(MOCK_USER_ID);
+        if (isMounted) {
+          setProfile(data);
+        }
+      } catch (e) {
+        console.error("Error loading profile", e);
+      } finally {
+        if (isMounted) {
+          setLoadingProfile(false);
+        }
+      }
+    };
+
+    loadProfile();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  // Derive a frontend-friendly userData object (with safe fallbacks)
+  const userData = profile
+    ? {
+        name: `${profile.first_name} ${profile.last_name}`,
+        email: "student@rochester.edu", // placeholder until auth
+        photo:
+          profile.avatar_url ??
+           "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400",
+        age: profile.age ?? undefined,
+        major: profile.major ?? "—",
+        year: profile.class_year ? `Class of ${profile.class_year}` : "—",
+        housingPreference: profile.housing_preference ?? "—",
+        budget: profile.budget_range ?? "—",
+        phone: profile.phone ?? "—",
+        contactNotes: profile.contact_notes ?? "",
+        hobbies: profile.hobbies ?? [],
+      }
+    : {
+        name: loadingProfile ? "Loading..." : "No profile yet",
+        email: "student@rochester.edu",
+        photo: "",
+        age: undefined,
+        major: "—",
+        year: "—",
+        housingPreference: "—",
+        budget: "—",
+        phone: "—",
+        contactNotes: "",
+        hobbies: [] as string[],
+      };
 
   return (
     <SafeAreaView style={styles.safeArea} edges={["top"]}>
@@ -96,9 +151,14 @@ export function Profile() {
           {/* Avatar + basic info */}
           <View style={styles.profileHeader}>
             <Avatar size={96}>
-              <AvatarImage src={userData.photo} />
-              <AvatarFallback>{userData.name.charAt(0)}</AvatarFallback>
-            </Avatar>
+              {userData.photo ? (
+                 <AvatarImage src={userData.photo} />
+                ) : (
+                  <AvatarFallback>
+                    {userData.name ? userData.name.charAt(0) : "?"}
+                  </AvatarFallback>
+                )}
+              </Avatar>
             <View style={styles.profileTextBlock}>
               <Text style={styles.profileName}>{userData.name}</Text>
               <Text style={styles.profileEmail}>{userData.email}</Text>
@@ -125,7 +185,9 @@ export function Profile() {
               <Calendar size={20} color="#6B7280" />
               <View style={styles.infoTextBlock}>
                 <Text style={styles.infoLabel}>Age</Text>
-                <Text style={styles.infoValue}>{userData.age} years old</Text>
+                <Text style={styles.infoValue}>
+                  {userData.age ? `${userData.age} years old` : "—"}
+                </Text>
               </View>
             </View>
 
@@ -147,6 +209,22 @@ export function Profile() {
               </View>
             </View>
 
+            <View style={styles.infoRow}>
+              <Phone size={20} color="#6B7280" />
+              <View style={styles.infoTextBlock}>
+                <Text style={styles.infoLabel}>Phone</Text>
+                <Text style={styles.infoValue}>{userData.phone}</Text>
+              </View>
+            </View>
+
+            <View style={styles.infoRow}>
+              <AtSign size={20} color="#6B7280" />
+              <View style={styles.infoTextBlock}>
+                <Text style={styles.infoLabel}>Contact / Social</Text>
+                <Text style={styles.infoValue}>{userData.contactNotes}</Text>
+              </View>
+            </View>
+
             <View style={[styles.infoRow, { alignItems: "flex-start" }]}>
               <Heart size={20} color="#6B7280" />
               <View style={styles.infoTextBlock}>
@@ -154,11 +232,21 @@ export function Profile() {
                   Hobbies & Interests
                 </Text>
                 <View style={styles.hobbyChips}>
-                  {userData.hobbies.map((hobby) => (
-                    <Badge key={hobby} variant="secondary" style={styles.hobby}>
-                      {hobby}
-                    </Badge>
-                  ))}
+                  {userData.hobbies.length > 0 ? (
+                    userData.hobbies.map((hobby) => (
+                      <Badge
+                        key={hobby}
+                        variant="secondary"
+                        style={styles.hobby}
+                      >
+                        {hobby}
+                      </Badge>
+                    ))
+                  ) : (
+                    <Text style={styles.helperText}>
+                      No hobbies added yet.
+                    </Text>
+                  )}
                 </View>
               </View>
             </View>
@@ -196,7 +284,7 @@ export function Profile() {
             <Badge variant="secondary">3</Badge>
           </Card>
 
-          {/* Posts / Messages tabs */}
+          {/* Tabs (only My Posts now) */}
           <View style={styles.tabsContainer}>
             <View style={styles.tabsList}>
               <TouchableOpacity
@@ -215,114 +303,54 @@ export function Profile() {
                   My Posts
                 </Text>
               </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  styles.tabTrigger,
-                  activeTab === "messages" && styles.tabTriggerActive,
-                ]}
-                onPress={() => setActiveTab("messages")}
-              >
-                <Text
-                  style={[
-                    styles.tabText,
-                    activeTab === "messages" && styles.tabTextActive,
-                  ]}
-                >
-                  Messages
-                </Text>
-              </TouchableOpacity>
             </View>
 
-            {activeTab === "posts" ? (
-              <View style={styles.tabContent}>
-                {userPosts.length > 0 ? (
-                  userPosts.map((post) => (
-                    <Card key={post.id} style={styles.card}>
-                      <View style={styles.postHeader}>
-                        <View style={{ flex: 1 }}>
-                          <View style={styles.postBadgeRow}>
-                            <Badge variant="outline">{post.type}</Badge>
-                            <Badge
-                              variant="secondary"
-                              style={styles.statusBadge}
-                            >
-                              {post.status}
-                            </Badge>
-                          </View>
-                          <Text style={styles.postTitle}>{post.title}</Text>
-                          <View style={styles.postMetaRow}>
-                            <Text style={styles.postMeta}>{post.date}</Text>
-                            <Text style={styles.postMeta}>•</Text>
-                            <Text style={styles.postMeta}>
-                              {post.views} views
-                            </Text>
-                          </View>
+            {/* My Posts content */}
+            <View style={styles.tabContent}>
+              {userPosts.length > 0 ? (
+                userPosts.map((post) => (
+                  <Card key={post.id} style={styles.card}>
+                    <View style={styles.postHeader}>
+                      <View style={{ flex: 1 }}>
+                        <View style={styles.postBadgeRow}>
+                          <Badge variant="outline">{post.type}</Badge>
+                          <Badge
+                            variant="secondary"
+                            style={styles.statusBadge}
+                          >
+                            {post.status}
+                          </Badge>
+                        </View>
+                        <Text style={styles.postTitle}>{post.title}</Text>
+                        <View style={styles.postMetaRow}>
+                          <Text style={styles.postMeta}>{post.date}</Text>
+                          <Text style={styles.postMeta}>•</Text>
+                          <Text style={styles.postMeta}>
+                            {post.views} views
+                          </Text>
                         </View>
                       </View>
-                    </Card>
-                  ))
-                ) : (
-                  <Card style={[styles.card, styles.centerCard]}>
-                    <Text style={styles.helperText}>
-                      You haven't posted anything yet.
-                    </Text>
-                    <Text style={styles.smallMuted}>
-                      Post a lease transfer to get started.
-                    </Text>
+                    </View>
                   </Card>
-                )}
-              </View>
-            ) : (
-              <View style={styles.tabContent}>
-                {/* Mock messages */}
-                <Card style={styles.card}>
-                  <View style={styles.messageRow}>
-                    <Avatar size={40}>
-                      <AvatarImage src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400" />
-                      <AvatarFallback>SJ</AvatarFallback>
-                    </Avatar>
-                    <View style={styles.messageTextBlock}>
-                      <View style={styles.messageTitleRow}>
-                        <Text style={styles.messageName}>Sarah Johnson</Text>
-                        <Text style={styles.messageTime}>2h ago</Text>
-                      </View>
-                      <Text style={styles.messagePreview}>
-                        Hi! I'm interested in your lease transfer posting...
-                      </Text>
-                    </View>
-                  </View>
-                </Card>
-
-                <Card style={styles.card}>
-                  <View style={styles.messageRow}>
-                    <Avatar size={40}>
-                      <AvatarImage src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=400" />
-                      <AvatarFallback>MK</AvatarFallback>
-                    </Avatar>
-                    <View style={styles.messageTextBlock}>
-                      <View style={styles.messageTitleRow}>
-                        <Text style={styles.messageName}>Mike Kim</Text>
-                        <Text style={styles.messageTime}>1d ago</Text>
-                      </View>
-                      <Text style={styles.messagePreview}>
-                        Would you be interested in being roommates?
-                      </Text>
-                    </View>
-                  </View>
-                </Card>
-
+                ))
+              ) : (
                 <Card style={[styles.card, styles.centerCard]}>
+                  <Text style={styles.helperText}>
+                    You haven't posted anything yet.
+                  </Text>
                   <Text style={styles.smallMuted}>
-                    These are placeholder messages from successful connections.
+                    Post a lease transfer to get started.
                   </Text>
                 </Card>
-              </View>
-            )}
+              )}
+            </View>
           </View>
 
           {/* Edit profile button */}
-          <Button style={styles.editButton} size="lg">
+          <Button style={styles.editButton} size="lg"onPress={onEditProfile}
+>
             Edit Profile
+
           </Button>
 
           {/* Prototype mode */}
@@ -386,6 +414,7 @@ export function Profile() {
     </SafeAreaView>
   );
 }
+
 
 const styles = StyleSheet.create({
   safeArea: {
@@ -484,6 +513,7 @@ const styles = StyleSheet.create({
   alertCard: {
     flexDirection: "row",
     alignItems: "center",
+    backgroundColor: "#EFF6FF",
   },
   alertIconCircle: {
     width: 40,
@@ -559,31 +589,6 @@ const styles = StyleSheet.create({
     color: "#9CA3AF",
     marginTop: 2,
     textAlign: "center",
-  },
-  messageRow: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-  },
-  messageTextBlock: {
-    flex: 1,
-    marginLeft: 10,
-  },
-  messageTitleRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 2,
-  },
-  messageName: {
-    fontSize: 14,
-    fontWeight: "500",
-  },
-  messageTime: {
-    fontSize: 11,
-    color: "#9CA3AF",
-  },
-  messagePreview: {
-    fontSize: 13,
-    color: "#6B7280",
   },
   editButton: {
     width: "100%",
